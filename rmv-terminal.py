@@ -32,7 +32,7 @@ def extract_datetime(departure):
 	return dt
 
 
-def format_output(departure):
+def format_output(departure, i3=None):
 	dt = extract_datetime(departure)
 
 	name = departure.attrib['name']
@@ -46,7 +46,12 @@ def format_output(departure):
 	minute_str = str(minutes)
 	if minute_str.endswith(".0") or minutes > 5:
 		minute_str = str(int(minutes))
-	print("{} -> {}: {}m".format(name, direction, minute_str))
+
+	if not i3:
+		print("{} -> {}: {}m".format(name, direction, minute_str))
+	else:
+		minute_str = str(round(minutes))
+		print("{}: {}m".format(name, minute_str))
 
 
 def parse_response(xml_f):
@@ -103,8 +108,7 @@ def process_query(station, direction=None, lines=None, n=None):
 	for i, departure in enumerate(parse_response(res)):
 		if n and n <= i:
 			break
-		format_output(departure)
-
+		yield departure
 
 
 if __name__ == '__main__':
@@ -114,10 +118,14 @@ if __name__ == '__main__':
 	parser.add_argument("--lines", help="list of lines (separated by comma and negated by !)")
 	parser.add_argument("-n", type=int, help="number of trains to display")
 	parser.add_argument("--debug", help="enable debug logging", action="store_true")
+	parser.add_argument("--i3", help="i3 mode", action="store_true")
 	args = parser.parse_args()
 
 	if args.debug:
 		logging.basicConfig(level=logging.DEBUG)
+
+	if args.i3:
+		args.n = 1
 
 	api_func = "departureBoard"
 
@@ -130,6 +138,8 @@ if __name__ == '__main__':
 		for direction in directions:
 			if direction:
 				logging.debug("looking for direction: {}".format(direction))
-			process_query(station, direction, args.lines, args.n)
+			for departure in process_query(station, direction, args.lines, args.n):
+				format_output(departure, args.i3)
+
 
 #  vim: tabstop=4 shiftwidth=4 noexpandtab
