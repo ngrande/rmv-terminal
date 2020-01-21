@@ -20,7 +20,7 @@ train_station_csv_path = "./RMV_Haltestellen.csv"
 
 class query_cache():
 	def __init__(self, cache_time_delta, base_url):
-		self._cache_path = "/var/tmp/{}.cache".format(__file__)
+		self._cache_path = "/var/tmp/{}.cache".format(os.path.basename(__file__))
 		self.cache_time_delta = cache_time_delta
 		self.base_url = base_url
 		self.cache = dict()
