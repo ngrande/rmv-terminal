@@ -2,14 +2,13 @@
 
 import os
 import csv
-import xml.etree
-import xml.etree.ElementTree
 import argparse
 import urllib
 import urllib.request
 import urllib.parse
 import datetime
 import logging
+import json
 
 base_url = "https://www.rmv.de/hapi"
 access_id_path = "./.access_id"
@@ -19,13 +18,13 @@ train_station_csv_path = "./RMV_Haltestellen.csv"
 
 
 def extract_datetime(departure):
-	date = departure.attrib['date']
-	time = departure.attrib['time']
+	date = departure['date']
+	time = departure['time']
 	dt = datetime.datetime.strptime(date + " " + time, "%Y-%m-%d %H:%M:%S")
 
-	if 'rtDate' and 'rtTime' in departure.attrib:
-		real_date = departure.attrib['rtDate']
-		real_time = departure.attrib['rtTime']
+	if 'rtDate' and 'rtTime' in departure:
+		real_date = departure['rtDate']
+		real_time = departure['rtTime']
 		real_dt = datetime.datetime.strptime(real_date + " " + real_time, "%Y-%m-%d %H:%M:%S")
 		return real_dt
 
@@ -35,8 +34,8 @@ def extract_datetime(departure):
 def format_output(departure, i3=None):
 	dt = extract_datetime(departure)
 
-	name = departure.attrib['name']
-	direction = departure.attrib['direction']
+	name = departure['name'].strip()
+	direction = departure['direction']
 
 	now = datetime.datetime.now()
 
@@ -54,11 +53,9 @@ def format_output(departure, i3=None):
 		print("{}: {}m".format(name, minute_str))
 
 
-def parse_response(xml_f):
-	tree = xml.etree.ElementTree.parse(xml_f)
-	root = tree.getroot()
+def parse_response(departures):
 
-	for departure in root.iter('{hafas_rest}Departure'):
+	for departure in departures:
 		
 		if datetime.datetime.now() >= extract_datetime(departure):
 			continue
@@ -86,6 +83,7 @@ def process_query(station, direction=None, lines=None, n=None):
 	query['accessId'] = open(access_id_path, "r", encoding="utf-8").read().strip()
 	# train station id
 	query['id'] = station
+	query['format'] = 'json'
 	if direction:
 		query['direction'] = direction
 	if lines:
@@ -105,7 +103,11 @@ def process_query(station, direction=None, lines=None, n=None):
 
 	logging.debug("request: {}".format(res.getcode()))
 
-	for i, departure in enumerate(parse_response(res)):
+	json_data = json.load(res)
+	if 'Departure' not in json_data:
+		return
+
+	for i, departure in enumerate(parse_response(json_data['Departure'])):
 		if n and n <= i:
 			break
 		yield departure
