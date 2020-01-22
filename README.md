@@ -5,6 +5,12 @@ Official Documentation from RMV: https://opendata.rmv.de/site/start.html
 + API overview: https://www.rmv.de/hapi/
 + XML description:  https://www.rmv.de/hapi/xsd
 
+## Access ID
+In order to use the rmv open data API you need a so called 'access id', to get one just register here:
+https://opendata.rmv.de/site/anmeldeseite.html
+
+You can then save it at the scripts location in a file called `.accecss_id` or use the parameter `--token`
+
 ## Example
 
     rmv-terminal[ master]$ ./rmv-terminal.py Galluswarte --lines "S6" --direction "Messe"
