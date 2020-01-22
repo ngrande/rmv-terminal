@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import sys
 import os
@@ -146,7 +146,7 @@ def format_output(departure, i3=None):
 def parse_response(departures, threshold=None):
 
 	for departure in departures:
-		
+
 		departure_time = extract_datetime(departure)
 		delta_till_departure = (departure_time - datetime.datetime.now()).seconds / 60
 		now = datetime.datetime.now()
@@ -227,7 +227,7 @@ if __name__ == '__main__':
 
 	if args.train_stations_csv:
 		train_station_csv_path = args.train_stations_csv
-	
+
 	cache = query_cache(datetime.timedelta(minutes=30), base_url)
 
 	assert os.path.isfile(access_id_path) or args.token, "file required: {} OR --token=<access_id>".format(access_id_path)
