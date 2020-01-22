@@ -16,6 +16,7 @@ base_url = "https://www.rmv.de/hapi"
 access_id_path = "{}/.access_id".format(os.path.dirname(__file__))
 # distributed in the git repository
 train_station_csv_path = "{}/RMV_Haltestellen.csv".format(os.path.dirname(__file__))
+register_link = "https://opendata.rmv.de/site/anmeldeseite.html"
 
 INVALID_ACCESS_ID_RETURN = 1
 
@@ -92,7 +93,7 @@ class query_cache():
 			res = urllib.request.urlopen(request_url)
 		except urllib.error.HTTPError as e:
 			if e.getcode() == 403:
-				logging.error("URL access forbidden: invalid access id (token)?")
+				logging.error("URL access forbidden: invalid access id (token)? You can register here: {}".format(register_link))
 				sys.exit(INVALID_ACCESS_ID_RETURN)
 			logging.debug("HTTP error code '{}': {}".format(e.getcode(), e.reason))
 			return None
