@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import sys
 import os
 import csv
 import argparse
@@ -12,15 +13,17 @@ import json
 import pickle
 
 base_url = "https://www.rmv.de/hapi"
-access_id_path = "./.access_id"
-train_station_csv_path = "./RMV_Haltestellen.csv"
+access_id_path = "{}/.access_id".format(os.path.dirname(__file__))
+# distributed in the git repository
+train_station_csv_path = "{}/RMV_Haltestellen.csv".format(os.path.dirname(__file__))
 
-#logging.basicConfig(level=logging.DEBUG)
+INVALID_ACCESS_ID_RETURN = 1
 
 
 class query_cache():
 	def __init__(self, cache_time_delta, base_url):
-		self._cache_path = "/var/tmp/{}.cache".format(os.path.basename(__file__))
+		# TODO use /var/tmp or /tmp? /tmp is faster... (tmpfs)
+		self._cache_path = "/tmp/{}.cache".format(os.path.basename(__file__))
 		self.cache_time_delta = cache_time_delta
 		self.base_url = base_url
 		self.cache = dict()
@@ -88,6 +91,9 @@ class query_cache():
 		try:
 			res = urllib.request.urlopen(request_url)
 		except urllib.error.HTTPError as e:
+			if e.getcode() == 403:
+				logging.error("URL access forbidden: invalid access id (token)?")
+				sys.exit(INVALID_ACCESS_ID_RETURN)
 			logging.debug("HTTP error code '{}': {}".format(e.getcode(), e.reason))
 			return None
 
@@ -215,9 +221,13 @@ if __name__ == '__main__':
 	
 	cache = query_cache(datetime.timedelta(minutes=30), base_url)
 
-	access_id = open(access_id_path, "r", encoding="utf-8").read().strip()
+	assert os.path.isfile(access_id_path) or args.token, "file required: {} OR --token=<access_id>".format(access_id_path)
+	access_id = None
 	if args.token:
 		access_id = args.token
+	else:
+		access_id = open(access_id_path, "r", encoding="utf-8").read().strip()
+	assert access_id, "No access id set - bug!"
 
 	for station in find_station_id(args.station):
 		directions = list(find_station_id(args.direction))
