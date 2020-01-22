@@ -5,6 +5,12 @@ Official Documentation from RMV: https://opendata.rmv.de/site/start.html
 + API overview: https://www.rmv.de/hapi/
 + XML description:  https://www.rmv.de/hapi/xsd
 
+## Access ID
+In order to use the rmv open data API you need a so called 'access id'.
+Just register here: https://opendata.rmv.de/site/anmeldeseite.html
+
+You can then store the access id then in a file named `.accecss_id` (must be in the same directory as the `rmv-terminal.py` script). Or simply use the `--token` parameter.
+
 ## Example
 
     rmv-terminal[ master]$ ./rmv-terminal.py Galluswarte --lines "S6" --direction "Messe"
@@ -17,8 +23,10 @@ Official Documentation from RMV: https://opendata.rmv.de/site/start.html
 
 simply append ```--help``` and you get a list of options:
 
-    rmv-terminal[ master]$ ./rmv-terminal.py Galluswarte --help
-    usage: rmv-terminal.py [-h] [--direction DIRECTION] [--lines LINES] [-n N] [--debug] [--i3] station
+    rmv-terminal[ master]$ ./rmv-terminal.py --help
+    usage: rmv-terminal.py [-h] [--direction DIRECTION] [--lines LINES] [-n N] [--debug] [--i3] [--train_stations_csv TRAIN_STATIONS_CSV] [--token TOKEN]
+                           [--threshold THRESHOLD]
+                           station
     
     positional arguments:
       station               request information for a train station
@@ -28,6 +36,11 @@ simply append ```--help``` and you get a list of options:
       --direction DIRECTION
                             direction of the trains
       --lines LINES         list of lines (separated by comma and negated by !)
-      -n N                  number of trains to display
+      -n N                  (maximum) number of trains to display
       --debug               enable debug logging
       --i3                  i3 mode
+      --train_stations_csv TRAIN_STATIONS_CSV
+                            path to the train stations csv file (expected to be UTF-8)
+      --token TOKEN         API token
+      --threshold THRESHOLD
+                            a threshold (in minutes) to filter the trains

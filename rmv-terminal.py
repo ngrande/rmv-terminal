@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import sys
 import os
 import csv
 import argparse
@@ -12,15 +13,18 @@ import json
 import pickle
 
 base_url = "https://www.rmv.de/hapi"
-access_id_path = "./.access_id"
-train_station_csv_path = "./RMV_Haltestellen.csv"
+access_id_path = "{}/.access_id".format(os.path.dirname(__file__))
+# distributed in the git repository
+train_station_csv_path = "{}/RMV_Haltestellen.csv".format(os.path.dirname(__file__))
+register_link = "https://opendata.rmv.de/site/anmeldeseite.html"
 
-#logging.basicConfig(level=logging.DEBUG)
+INVALID_ACCESS_ID_RETURN = 1
 
 
 class query_cache():
 	def __init__(self, cache_time_delta, base_url):
-		self._cache_path = "/var/tmp/{}.cache".format(os.path.basename(__file__))
+		# TODO use /var/tmp or /tmp? /tmp is faster... (tmpfs)
+		self._cache_path = "/tmp/{}.cache".format(os.path.basename(__file__)[:-3])
 		self.cache_time_delta = cache_time_delta
 		self.base_url = base_url
 		self.cache = dict()
@@ -88,6 +92,9 @@ class query_cache():
 		try:
 			res = urllib.request.urlopen(request_url)
 		except urllib.error.HTTPError as e:
+			if e.getcode() == 403:
+				logging.error("URL access forbidden: invalid access id (token)? You can register here: {}".format(register_link))
+				sys.exit(INVALID_ACCESS_ID_RETURN)
 			logging.debug("HTTP error code '{}': {}".format(e.getcode(), e.reason))
 			return None
 
@@ -136,11 +143,22 @@ def format_output(departure, i3=None):
 		print("{}: {}m".format(name, minute_str))
 
 
-def parse_response(departures):
+def parse_response(departures, threshold=None):
 
 	for departure in departures:
 		
-		if datetime.datetime.now() >= extract_datetime(departure):
+		departure_time = extract_datetime(departure)
+		delta_till_departure = (departure_time - datetime.datetime.now()).seconds / 60
+		now = datetime.datetime.now()
+		if now >= departure_time:
+			logging.debug("train is already departed (now: {}): {}".format(now, departure))
+			continue
+		elif threshold and delta_till_departure <= threshold:
+			logging.debug("train is filtered due to threshold ({}): {}".format(threshold, departure))
+			continue
+
+		if not departure['reachable']:
+			logging.debug("train is not reachable: {}".format(threshold, departure))
 			continue
 
 		yield departure
@@ -160,12 +178,13 @@ def find_station_id(station_search_str):
 				yield station_id
 
 
-def process_query(access_id, cache, station, direction=None, lines=None, n=None):
+def process_query(access_id, cache, station, direction=None, lines=None, n=None, threshold=None):
 	query = dict()
 	# api token
 	query['accessId'] = access_id
 	# train station id
 	query['id'] = station
+	query['lang'] = 'de' # 'en' is also possible
 	query['format'] = 'json'
 	if direction:
 		query['direction'] = direction
@@ -181,7 +200,7 @@ def process_query(access_id, cache, station, direction=None, lines=None, n=None)
 	if 'Departure' not in json_data:
 		return
 
-	for i, departure in enumerate(parse_response(json_data['Departure'])):
+	for i, departure in enumerate(parse_response(json_data['Departure'], threshold)):
 		if n and n <= i:
 			break
 		yield departure
@@ -197,6 +216,7 @@ if __name__ == '__main__':
 	parser.add_argument("--i3", help="i3 mode", action="store_true")
 	parser.add_argument("--train_stations_csv", help="path to the train stations csv file (expected to be UTF-8)", default=train_station_csv_path)
 	parser.add_argument("--token", help="API token")
+	parser.add_argument("--threshold", help="a threshold (in minutes) to filter the trains", type=int)
 	args = parser.parse_args()
 
 	if args.debug:
@@ -210,9 +230,13 @@ if __name__ == '__main__':
 	
 	cache = query_cache(datetime.timedelta(minutes=30), base_url)
 
-	access_id = open(access_id_path, "r", encoding="utf-8").read().strip()
+	assert os.path.isfile(access_id_path) or args.token, "file required: {} OR --token=<access_id>".format(access_id_path)
+	access_id = None
 	if args.token:
 		access_id = args.token
+	else:
+		access_id = open(access_id_path, "r", encoding="utf-8").read().strip()
+	assert access_id, "No access id set - bug!"
 
 	for station in find_station_id(args.station):
 		directions = list(find_station_id(args.direction))
@@ -221,7 +245,7 @@ if __name__ == '__main__':
 		for direction in directions:
 			if direction:
 				logging.debug("looking for direction: {}".format(direction))
-			for departure in process_query(access_id, cache, station, direction, args.lines, args.n):
+			for departure in process_query(access_id, cache, station, direction, args.lines, args.n, args.threshold):
 				format_output(departure, args.i3)
 
 	cache.dump()
