@@ -17,8 +17,10 @@ Official Documentation from RMV: https://opendata.rmv.de/site/start.html
 
 simply append ```--help``` and you get a list of options:
 
-    rmv-terminal[ master]$ ./rmv-terminal.py Galluswarte --help
-    usage: rmv-terminal.py [-h] [--direction DIRECTION] [--lines LINES] [-n N] [--debug] [--i3] station
+    rmv-terminal[ master]$ ./rmv-terminal.py --help
+    usage: rmv-terminal.py [-h] [--direction DIRECTION] [--lines LINES] [-n N] [--debug] [--i3] [--train_stations_csv TRAIN_STATIONS_CSV] [--token TOKEN]
+                           [--threshold THRESHOLD]
+                           station
     
     positional arguments:
       station               request information for a train station
@@ -28,6 +30,11 @@ simply append ```--help``` and you get a list of options:
       --direction DIRECTION
                             direction of the trains
       --lines LINES         list of lines (separated by comma and negated by !)
-      -n N                  number of trains to display
+      -n N                  (maximum) number of trains to display
       --debug               enable debug logging
       --i3                  i3 mode
+      --train_stations_csv TRAIN_STATIONS_CSV
+                            path to the train stations csv file (expected to be UTF-8)
+      --token TOKEN         API token
+      --threshold THRESHOLD
+                            a threshold (in minutes) to filter the trains
