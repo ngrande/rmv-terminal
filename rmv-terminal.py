@@ -24,7 +24,7 @@ INVALID_ACCESS_ID_RETURN = 1
 class query_cache():
 	def __init__(self, cache_time_delta, base_url):
 		# TODO use /var/tmp or /tmp? /tmp is faster... (tmpfs)
-		self._cache_path = "/tmp/{}.cache".format(os.path.basename(__file__))
+		self._cache_path = "/tmp/{}.cache".format(os.path.basename(__file__)[:-3])
 		self.cache_time_delta = cache_time_delta
 		self.base_url = base_url
 		self.cache = dict()
