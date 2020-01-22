@@ -6,10 +6,10 @@ Official Documentation from RMV: https://opendata.rmv.de/site/start.html
 + XML description:  https://www.rmv.de/hapi/xsd
 
 ## Access ID
-In order to use the rmv open data API you need a so called 'access id', to get one just register here:
-https://opendata.rmv.de/site/anmeldeseite.html
+In order to use the rmv open data API you need a so called 'access id'.
+Just register here: https://opendata.rmv.de/site/anmeldeseite.html
 
-You can then save it at the scripts location in a file called `.accecss_id` or use the parameter `--token`
+You can then store the access id then in a file named `.accecss_id` (must be in the same directory as the `rmv-terminal.py` script). Or simply use the `--token` parameter.
 
 ## Example
 

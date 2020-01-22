@@ -149,9 +149,16 @@ def parse_response(departures, threshold=None):
 		
 		departure_time = extract_datetime(departure)
 		delta_till_departure = (departure_time - datetime.datetime.now()).seconds / 60
-		if datetime.datetime.now() >= departure_time:
+		now = datetime.datetime.now()
+		if now >= departure_time:
+			logging.debug("train is already departed (now: {}): {}".format(now, departure))
 			continue
 		elif threshold and delta_till_departure <= threshold:
+			logging.debug("train is filtered due to threshold ({}): {}".format(threshold, departure))
+			continue
+
+		if not departure['reachable']:
+			logging.debug("train is not reachable: {}".format(threshold, departure))
 			continue
 
 		yield departure
@@ -177,6 +184,7 @@ def process_query(access_id, cache, station, direction=None, lines=None, n=None,
 	query['accessId'] = access_id
 	# train station id
 	query['id'] = station
+	query['lang'] = 'de' # 'en' is also possible
 	query['format'] = 'json'
 	if direction:
 		query['direction'] = direction
