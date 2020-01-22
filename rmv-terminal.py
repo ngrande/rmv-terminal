@@ -136,11 +136,15 @@ def format_output(departure, i3=None):
 		print("{}: {}m".format(name, minute_str))
 
 
-def parse_response(departures):
+def parse_response(departures, threshold=None):
 
 	for departure in departures:
 		
-		if datetime.datetime.now() >= extract_datetime(departure):
+		departure_time = extract_datetime(departure)
+		delta_till_departure = (departure_time - datetime.datetime.now()).seconds / 60
+		if datetime.datetime.now() >= departure_time:
+			continue
+		elif threshold and delta_till_departure <= threshold:
 			continue
 
 		yield departure
@@ -160,7 +164,7 @@ def find_station_id(station_search_str):
 				yield station_id
 
 
-def process_query(access_id, cache, station, direction=None, lines=None, n=None):
+def process_query(access_id, cache, station, direction=None, lines=None, n=None, threshold=None):
 	query = dict()
 	# api token
 	query['accessId'] = access_id
@@ -181,7 +185,7 @@ def process_query(access_id, cache, station, direction=None, lines=None, n=None)
 	if 'Departure' not in json_data:
 		return
 
-	for i, departure in enumerate(parse_response(json_data['Departure'])):
+	for i, departure in enumerate(parse_response(json_data['Departure'], threshold)):
 		if n and n <= i:
 			break
 		yield departure
@@ -197,6 +201,7 @@ if __name__ == '__main__':
 	parser.add_argument("--i3", help="i3 mode", action="store_true")
 	parser.add_argument("--train_stations_csv", help="path to the train stations csv file (expected to be UTF-8)", default=train_station_csv_path)
 	parser.add_argument("--token", help="API token")
+	parser.add_argument("--threshold", help="a threshold (in minutes) to filter the trains", type=int)
 	args = parser.parse_args()
 
 	if args.debug:
@@ -221,7 +226,7 @@ if __name__ == '__main__':
 		for direction in directions:
 			if direction:
 				logging.debug("looking for direction: {}".format(direction))
-			for departure in process_query(access_id, cache, station, direction, args.lines, args.n):
+			for departure in process_query(access_id, cache, station, direction, args.lines, args.n, args.threshold):
 				format_output(departure, args.i3)
 
 	cache.dump()
