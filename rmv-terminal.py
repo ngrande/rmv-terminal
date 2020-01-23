@@ -253,6 +253,7 @@ if __name__ == '__main__':
 	parser.add_argument("--token", help="API token")
 	parser.add_argument("--threshold", help="a threshold (in minutes) to filter the trains", type=int)
 	parser.add_argument("--duration", help="specify a duration in minutes for which to query the trains")
+	parser.add_argument("--cache-duration", help="minutes of cache time (before requesting new data)", type=int, default=15)
 	args = parser.parse_args()
 
 	if args.debug:
@@ -261,7 +262,7 @@ if __name__ == '__main__':
 	if args.i3:
 		args.n = 1
 
-	cache = query_cache(datetime.timedelta(minutes=30), base_url)
+	cache = query_cache(datetime.timedelta(minutes=args.cache_duration), base_url)
 
 	assert os.path.isfile(access_id_path) or args.token, "file required: {} OR --token=<access_id>".format(access_id_path)
 	access_id = None
