@@ -12,20 +12,21 @@ import logging
 import json
 import pickle
 import operator
+import shutil
 
 base_url = "https://www.rmv.de/hapi"
 access_id_path = "{}/.access_id".format(os.path.dirname(__file__))
 # distributed in the git repository
 train_station_csv_path = "{}/RMV_Haltestellen.csv".format(os.path.dirname(__file__))
 register_link = "https://opendata.rmv.de/site/anmeldeseite.html"
+tmp_path = "/tmp"
 
 INVALID_ACCESS_ID_RETURN = 1
 
 
 class query_cache():
 	def __init__(self, cache_time_delta, base_url):
-		# TODO use /var/tmp or /tmp? /tmp is faster... (tmpfs)
-		self._cache_path = "/tmp/{}.cache".format(os.path.basename(__file__)[:-3])
+		self._cache_path = os.path.join(tmp_path, "{}.cache".format(os.path.basename(__file__)[:-3]))
 		self.cache_time_delta = cache_time_delta
 		self.base_url = base_url
 		self.cache = dict()
@@ -153,7 +154,7 @@ def parse_response(departures, threshold=None):
 
 	for departure in departures:
 		
-		departure_time = extract_datetime(departure)
+		departure_time = departure['datetime']
 		delta_till_departure = (departure_time - datetime.datetime.now()).seconds / 60
 		now = datetime.datetime.now()
 		if now >= departure_time:
@@ -170,18 +171,16 @@ def parse_response(departures, threshold=None):
 		yield departure
 
 
-def find_station_id(station_search_str):
+def find_station_id(csv_dict_data, station_search_str):
 	if station_search_str is None or station_search_str == "":
 		return []
 
 	logging.debug("searching for {}".format(station_search_str))
-	with open(train_station_csv_path, "r", encoding="utf-8") as station_file:
-		reader = csv.DictReader(station_file, delimiter=";")
-		for row in reader:
-			if station_search_str.lower() in row['HST_NAME'].lower():
-				station_id = row['HAFAS_ID']
-				logging.debug("{} - {}".format(station_search_str, row['HST_NAME']))
-				yield station_id
+	for row in csv_dict_data:
+		if station_search_str.lower() in row['HST_NAME'].lower():
+			station_id = row['HAFAS_ID']
+			logging.debug("{} - {}".format(station_search_str, row['HST_NAME']))
+			yield station_id
 
 
 def process_query(access_id, cache, station, direction=None, lines=None, n=None, threshold=None, duration=None):
@@ -214,6 +213,34 @@ def process_query(access_id, cache, station, direction=None, lines=None, n=None,
 		yield departure
 
 
+def cache_csv_file(csv_path):
+	mtime = os.stat(csv_path).st_mtime_ns
+	csv_name = os.path.basename(csv_path)
+
+	cache_file = "{}.{}".format(csv_name, mtime)
+	cache_file_path = os.path.join(tmp_path, cache_file)
+
+	is_in_cache = False
+
+	# find actual file in cache
+	for f in os.listdir(tmp_path):
+		if csv_name in f and f != cache_file:
+			# cleanup old csv files
+			outdated_file = os.path.join(tmp_path, f)
+			logging.debug("removing old cached csv file '{}'".format(outdated_file))
+			os.remove(outdated_file)
+		elif f == cache_file:
+			# file is up to date
+			is_in_cache = True
+			logging.debug("csv file is still in cache '{}'".format(cache_file_path))
+
+	if not is_in_cache:
+		shutil.copyfile(csv_path, cache_file_path)
+		logging.debug("updating cached csv file '{}' -> '{}'".format(csv_path, cache_file_path))
+
+	return cache_file_path
+
+
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser()
 	parser.add_argument("station", help="request information for a train station")
@@ -234,9 +261,6 @@ if __name__ == '__main__':
 	if args.i3:
 		args.n = 1
 
-	if args.train_stations_csv:
-		train_station_csv_path = args.train_stations_csv
-	
 	cache = query_cache(datetime.timedelta(minutes=30), base_url)
 
 	assert os.path.isfile(access_id_path) or args.token, "file required: {} OR --token=<access_id>".format(access_id_path)
@@ -247,8 +271,16 @@ if __name__ == '__main__':
 		access_id = open(access_id_path, "r", encoding="utf-8").read().strip()
 	assert access_id, "No access id set - bug!"
 
-	for station in find_station_id(args.station):
-		directions = list(find_station_id(args.direction))
+	csv_dict_data = None
+	cached_csv_file_path = cache_csv_file(args.train_stations_csv)
+	with open(cached_csv_file_path, "r", encoding="utf-8") as station_file:
+		csv_dict_data = []
+		for row in csv.DictReader(station_file, delimiter=";"):
+			csv_dict_data.append(row)
+	assert csv_dict_data is not None and len(csv_dict_data) > 0, "could not read csv station file"
+
+	for station in find_station_id(csv_dict_data, args.station):
+		directions = list(find_station_id(csv_dict_data, args.direction))
 		if len(directions) == 0:
 			directions = [None]
 		for direction in directions:
