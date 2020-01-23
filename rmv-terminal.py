@@ -60,13 +60,14 @@ class query_cache():
 
 		if method in self.cache and query_key in self.cache[method]:
 			cached_data = self.cache[method][query_key]
-			if datetime.datetime.now() - cached_data['time'] > self.cache_time_delta:
+			data_age = datetime.datetime.now() - cached_data['time']
+			if data_age > self.cache_time_delta:
 				# data too old!
 				logging.debug("data might be cached but too old anyway")
 				del self.cache[method][query_key]
 				return None
 			# data still good!
-			logging.debug("data in cache!")
+			logging.debug("data in cache! (age: {}m)".format(round(data_age.total_seconds() / 60, 1)))
 			return cached_data['result']
 
 
