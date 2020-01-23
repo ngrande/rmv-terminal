@@ -178,7 +178,7 @@ def find_station_id(station_search_str):
 				yield station_id
 
 
-def process_query(access_id, cache, station, direction=None, lines=None, n=None, threshold=None):
+def process_query(access_id, cache, station, direction=None, lines=None, n=None, threshold=None, duration=None):
 	query = dict()
 	# api token
 	query['accessId'] = access_id
@@ -186,6 +186,8 @@ def process_query(access_id, cache, station, direction=None, lines=None, n=None,
 	query['id'] = station
 	query['lang'] = 'de' # 'en' is also possible
 	query['format'] = 'json'
+	if duration:
+		query['duration'] = duration
 	if direction:
 		query['direction'] = direction
 	if lines:
@@ -217,6 +219,7 @@ if __name__ == '__main__':
 	parser.add_argument("--train_stations_csv", help="path to the train stations csv file (expected to be UTF-8)", default=train_station_csv_path)
 	parser.add_argument("--token", help="API token")
 	parser.add_argument("--threshold", help="a threshold (in minutes) to filter the trains", type=int)
+	parser.add_argument("--duration", help="specify a duration in minutes for which to query the trains")
 	args = parser.parse_args()
 
 	if args.debug:
@@ -245,7 +248,7 @@ if __name__ == '__main__':
 		for direction in directions:
 			if direction:
 				logging.debug("looking for direction: {}".format(direction))
-			for departure in process_query(access_id, cache, station, direction, args.lines, args.n, args.threshold):
+			for departure in process_query(access_id, cache, station, direction, args.lines, args.n, args.threshold, args.duration):
 				format_output(departure, args.i3)
 
 	cache.dump()
