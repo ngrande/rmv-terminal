@@ -11,6 +11,7 @@ import datetime
 import logging
 import json
 import pickle
+import operator
 
 base_url = "https://www.rmv.de/hapi"
 access_id_path = "{}/.access_id".format(os.path.dirname(__file__))
@@ -146,7 +147,12 @@ def format_output(departure, i3=None):
 def parse_response(departures, threshold=None):
 
 	for departure in departures:
+		departure['datetime'] = extract_datetime(departure)
 
+	departures = sorted(departures, key=operator.itemgetter('datetime'))
+
+	for departure in departures:
+		
 		departure_time = extract_datetime(departure)
 		delta_till_departure = (departure_time - datetime.datetime.now()).seconds / 60
 		now = datetime.datetime.now()
@@ -230,7 +236,7 @@ if __name__ == '__main__':
 
 	if args.train_stations_csv:
 		train_station_csv_path = args.train_stations_csv
-
+	
 	cache = query_cache(datetime.timedelta(minutes=30), base_url)
 
 	assert os.path.isfile(access_id_path) or args.token, "file required: {} OR --token=<access_id>".format(access_id_path)
