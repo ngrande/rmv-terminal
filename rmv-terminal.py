@@ -116,8 +116,8 @@ def extract_datetime(obj, time_key='time', date_key='date', time_key_alt=None, d
 	time = obj[time_key]
 	dt = datetime.datetime.strptime(date + " " + time, "%Y-%m-%d %H:%M:%S")
 
-	if time_key_alt and date_key_alt and \
-		date_key_alt in obj and time_key_alt in obj:
+	if (time_key_alt and date_key_alt) and \
+		(date_key_alt in obj and time_key_alt in obj):
 		real_date = obj[date_key_alt]
 		real_time = obj[time_key_alt]
 		real_dt = datetime.datetime.strptime(real_date + " " + real_time, "%Y-%m-%d %H:%M:%S")
@@ -127,7 +127,7 @@ def extract_datetime(obj, time_key='time', date_key='date', time_key_alt=None, d
 
 
 def format_output(departure, i3=None):
-	dt = extract_datetime(departure, 'rtTime', 'rtDate')
+	dt = extract_datetime(departure, time_key_alt='rtTime', date_key_alt='rtDate')
 
 	name = departure['name'].strip()
 	direction = departure['direction']
@@ -151,7 +151,7 @@ def format_output(departure, i3=None):
 def parse_departures(departures, threshold=None):
 
 	for departure in departures:
-		departure['datetime'] = extract_datetime(departure, 'rtTime', 'rtDate')
+		departure['datetime'] = extract_datetime(departure, time_key_alt='rtTime', date_key_alt='rtDate')
 
 	departures = sorted(departures, key=operator.itemgetter('datetime'))
 
