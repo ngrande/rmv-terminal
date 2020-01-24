@@ -22,7 +22,9 @@ register_link = "https://opendata.rmv.de/site/anmeldeseite.html"
 tmp_path = "/tmp"
 lang = 'de'
 
-INVALID_ACCESS_ID_RETURN = 1
+INVALID_ACCESS_ID_ERR = 1
+AMBIGIOUS_STATIONS_ERR = 2
+NO_STATIONS_ERR = 3
 
 
 class query_cache():
@@ -98,7 +100,7 @@ class query_cache():
 		except urllib.error.HTTPError as e:
 			if e.getcode() == 403:
 				logging.error("URL access forbidden: invalid access id (token)? You can register here: {}".format(register_link))
-				sys.exit(INVALID_ACCESS_ID_RETURN)
+				sys.exit(INVALID_ACCESS_ID_ERR)
 			logging.debug("HTTP error code '{}': {}".format(e.getcode(), e.reason))
 			return None
 
@@ -175,15 +177,22 @@ def parse_departures(departures, threshold=None):
 
 
 def find_station_id(csv_dict_data, station_search_str):
-	if station_search_str is None or station_search_str == "":
-		return []
+	assert station_search_str and len(station_search_str) > 0, "no station str"
+	candidates = []
 
 	logging.debug("searching for {}".format(station_search_str))
 	for row in csv_dict_data:
-		if station_search_str.lower() in row['HST_NAME'].lower():
+		station_name = row['HST_NAME']
+		if station_search_str.lower() in station_name.lower():
 			station_id = row['HAFAS_ID']
 			logging.debug("{} - {}".format(station_search_str, row['HST_NAME']))
-			yield station_id
+			candidates.append((station_name, station_id))
+	if len(candidates) == 0:
+		err_no_stations(station_search_str)
+	if len(candidates) > 1:
+		err_ambigious(station_search_str, candidates)
+
+	return candidates[0][1]
 
 
 def request_departures(access_id, cache, station, direction=None, lines=None, n=None, threshold=None, duration=None):
@@ -294,6 +303,16 @@ def cache_csv_file(csv_path):
 	return cache_file_path
 
 
+def err_no_stations(search):
+	print("No stations found for '{}'".format(search), file=sys.stderr)
+	sys.exit(NO_STATIONS_ERR)
+
+def err_ambigious(search, results):
+	if len(results) > 1:
+		print("Multiple stations found for '{}': {}".format(search, results), file=sys.stderr)
+	sys.exit(AMBIGIOUS_STATIONS_ERR)
+
+
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser()
 	parser.add_argument("station", help="request information for a train station")
@@ -338,18 +357,17 @@ if __name__ == '__main__':
 
 	train_infos = request_infos(access_id, cache)
 
-	for station in find_station_id(csv_dict_data, args.station):
-		directions = list(find_station_id(csv_dict_data, args.direction))
-		if len(directions) == 0:
-			directions = [None]
-		for direction in directions:
-			if direction:
-				logging.debug("looking for direction: {}".format(direction))
-			for departure in request_departures(access_id, cache, station, direction, args.lines, args.n, args.threshold, args.duration):
-				format_output(departure, args.i3)
-				train = departure['name'].strip()
-				if not args.no_info:
-					print_infos(train_infos, [train], args.info_min_category, args.more_info)
+	station_id = find_station_id(csv_dict_data, args.station)
+	direction_id = None
+	if args.direction:
+		direction_id = find_station_id(csv_dict_data, args.direction)
+		logging.debug("looking for direction: {}".format(direction_id))
+
+	for departure in request_departures(access_id, cache, station_id, direction_id, args.lines, args.n, args.threshold, args.duration):
+		format_output(departure, args.i3)
+		train = departure['name'].strip()
+		if not args.no_info:
+			print_infos(train_infos, [train], args.info_min_category, args.more_info)
 
 	cache.dump()
 
