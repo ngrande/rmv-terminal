@@ -20,6 +20,7 @@ access_id_path = "{}/.access_id".format(os.path.dirname(__file__))
 train_station_csv_path = "{}/RMV_Haltestellen.csv".format(os.path.dirname(__file__))
 register_link = "https://opendata.rmv.de/site/anmeldeseite.html"
 tmp_path = "/tmp"
+lang = 'de'
 
 INVALID_ACCESS_ID_RETURN = 1
 
@@ -110,14 +111,15 @@ class query_cache():
 		return json_data
 
 
-def extract_datetime(departure):
-	date = departure['date']
-	time = departure['time']
+def extract_datetime(obj, time_key='time', date_key='date', time_key_alt=None, date_key_alt=None):
+	date = obj[date_key]
+	time = obj[time_key]
 	dt = datetime.datetime.strptime(date + " " + time, "%Y-%m-%d %H:%M:%S")
 
-	if 'rtDate' and 'rtTime' in departure:
-		real_date = departure['rtDate']
-		real_time = departure['rtTime']
+	if time_key_alt and date_key_alt and \
+		date_key_alt in obj and time_key_alt in obj:
+		real_date = obj[date_key_alt]
+		real_time = obj[time_key_alt]
 		real_dt = datetime.datetime.strptime(real_date + " " + real_time, "%Y-%m-%d %H:%M:%S")
 		return real_dt
 
@@ -125,7 +127,7 @@ def extract_datetime(departure):
 
 
 def format_output(departure, i3=None):
-	dt = extract_datetime(departure)
+	dt = extract_datetime(departure, 'rtTime', 'rtDate')
 
 	name = departure['name'].strip()
 	direction = departure['direction']
@@ -146,10 +148,10 @@ def format_output(departure, i3=None):
 		print("{}: {}m".format(name, minute_str))
 
 
-def parse_response(departures, threshold=None):
+def parse_departures(departures, threshold=None):
 
 	for departure in departures:
-		departure['datetime'] = extract_datetime(departure)
+		departure['datetime'] = extract_datetime(departure, 'rtTime', 'rtDate')
 
 	departures = sorted(departures, key=operator.itemgetter('datetime'))
 
@@ -184,13 +186,13 @@ def find_station_id(csv_dict_data, station_search_str):
 			yield station_id
 
 
-def process_query(access_id, cache, station, direction=None, lines=None, n=None, threshold=None, duration=None):
+def request_departures(access_id, cache, station, direction=None, lines=None, n=None, threshold=None, duration=None):
 	query = dict()
 	# api token
 	query['accessId'] = access_id
 	# train station id
 	query['id'] = station
-	query['lang'] = 'de' # 'en' is also possible
+	query['lang'] = lang # 'en' is also possible
 	query['format'] = 'json'
 	if duration:
 		query['duration'] = duration
@@ -208,10 +210,60 @@ def process_query(access_id, cache, station, direction=None, lines=None, n=None,
 	if 'Departure' not in json_data:
 		return
 
-	for i, departure in enumerate(parse_response(json_data['Departure'], threshold)):
+	for i, departure in enumerate(parse_departures(json_data['Departure'], threshold)):
 		if n and n <= i:
 			break
 		yield departure
+
+
+def request_infos(access_id, cache):
+	query = dict()
+	query['accessId'] = access_id
+	query['format'] = 'json'
+	query['lang'] = lang # 'en' is also possible
+	
+	api_func = 'himsearch'
+	json_data = cache.query(api_func, query)
+
+	if json_data is None:
+		return None
+
+	if 'Message' not in json_data:
+		return None
+
+	return json_data['Message']
+
+def print_infos(infos, trains=None, min_category=None, more_info=False):
+	if not trains or len(trains) <= 0:
+		return
+
+	for message in infos:
+		if min_category and int(message['category']) > min_category:
+			logging.debug("message filtered due to min category ({} vs {})".format(message['category'], min_category))
+			continue
+
+		if 'affectedProduct' not in message:
+			#logging.debug("No affected product!: {}".format("\n".join(["{}: {}".format(k, v) for k, v in message.items()])))
+			if message['category'] != 1: # 1 seems to be the most important
+				continue
+		elif trains:
+			affected_trains = [train['name'] for train in message['affectedProduct']]
+			if len([train for train in trains if train in affected_trains]) == 0:
+				# no affected trains listed
+				continue
+
+		message_time_start = extract_datetime(message, 'sTime', 'sDate')
+		message_time_end = extract_datetime(message, 'eTime', 'eDate')
+
+		if not (datetime.datetime.now() >= message_time_start and datetime.datetime.now() <= message_time_end):
+			logging.debug("info no more up to date")
+			continue
+
+		print("INFO [{}]".format(message['category']))
+		print(" +++", message['head'], "+++", file=sys.stderr)
+		if more_info:
+			print(message['lead'], file=sys.stderr)
+#		print(message['text'], file=sys.stderr)
 
 
 def cache_csv_file(csv_path):
@@ -255,6 +307,9 @@ if __name__ == '__main__':
 	parser.add_argument("--threshold", help="a threshold (in minutes) to filter the trains", type=int)
 	parser.add_argument("--duration", help="specify a duration in minutes for which to query the trains")
 	parser.add_argument("--cache-duration", help="minutes of cache time (before requesting new data)", type=int, default=15)
+	parser.add_argument("--info-min-category", help="filter all infos which are of a lesser category (1 = HIGH, 2 = MED, 3 = LOW)", type=int, default=1)
+	parser.add_argument("--no-info", help="do not show info for trains", action='store_true')
+	parser.add_argument("--more-info", help="show more detailed info message", action='store_true')
 	args = parser.parse_args()
 
 	if args.debug:
@@ -281,6 +336,8 @@ if __name__ == '__main__':
 			csv_dict_data.append(row)
 	assert csv_dict_data is not None and len(csv_dict_data) > 0, "could not read csv station file"
 
+	train_infos = request_infos(access_id, cache)
+
 	for station in find_station_id(csv_dict_data, args.station):
 		directions = list(find_station_id(csv_dict_data, args.direction))
 		if len(directions) == 0:
@@ -288,8 +345,11 @@ if __name__ == '__main__':
 		for direction in directions:
 			if direction:
 				logging.debug("looking for direction: {}".format(direction))
-			for departure in process_query(access_id, cache, station, direction, args.lines, args.n, args.threshold, args.duration):
+			for departure in request_departures(access_id, cache, station, direction, args.lines, args.n, args.threshold, args.duration):
 				format_output(departure, args.i3)
+				train = departure['name'].strip()
+				if not args.no_info:
+					print_infos(train_infos, [train], args.info_min_category, args.more_info)
 
 	cache.dump()
 
