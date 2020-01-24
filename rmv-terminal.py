@@ -156,7 +156,7 @@ def parse_departures(departures, threshold=None):
 	departures = sorted(departures, key=operator.itemgetter('datetime'))
 
 	for departure in departures:
-		
+
 		departure_time = departure['datetime']
 		delta_till_departure = (departure_time - datetime.datetime.now()).seconds / 60
 		now = datetime.datetime.now()
@@ -221,7 +221,7 @@ def request_infos(access_id, cache):
 	query['accessId'] = access_id
 	query['format'] = 'json'
 	query['lang'] = lang # 'en' is also possible
-	
+
 	api_func = 'himsearch'
 	json_data = cache.query(api_func, query)
 
@@ -259,7 +259,7 @@ def print_infos(infos, trains=None, min_category=None, more_info=False):
 			logging.debug("info no more up to date")
 			continue
 
-		print("INFO [{}]".format(message['category']))
+		print("INFO [{}]".format(message['category']), file=sys.stderr)
 		print(" +++", message['head'], "+++", file=sys.stderr)
 		if more_info:
 			print(message['lead'], file=sys.stderr)
