@@ -28,7 +28,7 @@ Infos are categorized into three categories from RMV.
 
 By default only category 1 info will be displayed and info will always be directed to stderr.
 
-Example
+#### Example
 
     rmv-terminal[ master]$ ./rmv-terminal.py Hauptwache --info-min-category 2
     U8 -> Frankfurt (Main) Riedberg: 0.5m
