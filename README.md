@@ -28,6 +28,18 @@ Infos are categorized into three categories from RMV.
 
 By default only category 1 info will be displayed and info will always be directed to stderr.
 
+Example
+
+    rmv-terminal[ master]$ ./rmv-terminal.py Hauptwache --info-min-category 2
+    U8 -> Frankfurt (Main) Riedberg: 0.5m
+    S6 -> Frankfurt (Main) Südbahnhof: 0.5m
+    U8 -> Frankfurt (Main) Südbahnhof: 1.4m
+    U6 -> Frankfurt (Main) Ostbahnhof: 2.5m
+    U6 -> Frankfurt (Main) Hausen: 2.5m
+    S9 -> Hanau Hauptbahnhof: 2.5m
+    U2 -> Bad Homburg v.d.H.-Gonzenheim (U): 3.5m
+    INFO [2]
+     +++ Frankfurt: U2 - Busse statt Bahnen auf Teilstrecke am 15.02. von 08:00 Uhr bis 15:00 Uhr +++
 
 ## Help
 
