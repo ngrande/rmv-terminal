@@ -19,13 +19,28 @@ You can then store the access id then in a file named `.accecss_id` (must be in 
     S6 -> Karben-Groß-Karben Bahnhof: 38m
     S6 -> Friedberg (Hessen) Bahnhof: 53m
 
+### Info
+Infos are categorized into three categories from RMV.
+
++ 1: Most important (trains might not operate at all)
++ 2: affectint train times
++ 3: Only information
+
+By default only category 1 info will be displayed and info will always be directed to stderr.
+
+
 ## Help
 
 simply append ```--help``` and you get a list of options:
 
     rmv-terminal[ master]$ ./rmv-terminal.py --help
-    usage: rmv-terminal.py [-h] [--direction DIRECTION] [--lines LINES] [-n N] [--debug] [--i3] [--train_stations_csv TRAIN_STATIONS_CSV] [--token TOKEN]
-                           [--threshold THRESHOLD]
+    usage: rmv-terminal.py [-h] [--direction DIRECTION] [--lines LINES] [-n N]
+                           [--debug] [--i3]
+                           [--train_stations_csv TRAIN_STATIONS_CSV] [--token TOKEN]
+                           [--threshold THRESHOLD] [--duration DURATION]
+                           [--cache-duration CACHE_DURATION]
+                           [--info-min-category INFO_MIN_CATEGORY] [--no-info]
+                           [--more-info]
                            station
     
     positional arguments:
@@ -40,7 +55,17 @@ simply append ```--help``` and you get a list of options:
       --debug               enable debug logging
       --i3                  i3 mode
       --train_stations_csv TRAIN_STATIONS_CSV
-                            path to the train stations csv file (expected to be UTF-8)
+                            path to the train stations csv file (expected to be
+                            UTF-8)
       --token TOKEN         API token
       --threshold THRESHOLD
                             a threshold (in minutes) to filter the trains
+      --duration DURATION   specify a duration in minutes for which to query the
+                            trains
+      --cache-duration CACHE_DURATION
+                            minutes of cache time (before requesting new data)
+      --info-min-category INFO_MIN_CATEGORY
+                            filter all infos which are of a lesser category (1 =
+                            HIGH, 2 = MED, 3 = LOW)
+      --no-info             do not show info for trains
+      --more-info           show more detailed info message
