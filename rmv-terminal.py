@@ -35,8 +35,12 @@ class query_cache():
 		self.cache = dict()
 		if os.path.isfile(self._cache_path):
 			logging.debug("loading pickled object from '{}'".format(self._cache_path))
-			with open(self._cache_path, "rb") as o:
-				self.cache = pickle.load(o)
+			try:
+				with open(self._cache_path, "rb") as o:
+					self.cache = pickle.load(o)
+			except Exception as e:
+				logging.debug("Cache seems to be corrupted! (discard it), error: {}".format(e))
+				self.cache = dict()
 
 	def dump(self):
 		logging.debug("writing cache pickled into file '{}'".format(self._cache_path))
